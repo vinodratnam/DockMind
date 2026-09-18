@@ -1,209 +1,176 @@
-# DocMind AI — Production-Ready Foundation
+# DocMind AI — Enterprise Document Intelligence & RAG Platform
 
-> An intelligent document assistant built on Next.js 15 + FastAPI, ready for RAG integration.
+> A full-stack, enterprise-grade Retrieval-Augmented Generation (RAG) platform powered by **Next.js 15**, **FastAPI**, **Qdrant Vector Database**, **BAAI/bge-small-en-v1.5 embeddings**, and **Google Gemini 2.5 Flash**.
 
 ---
 
-## Project Structure
+## 🚀 Key Features
+
+* **🧠 Grounded RAG Pipeline:** Generates strictly factual answers sourced exclusively from uploaded documents with zero hallucinations.
+* **⚡ Server-Sent Events (SSE) Streaming:** Real-time token-by-token response streaming with live typing indicators.
+* **🔍 Hybrid Search Engine:** Combines dense semantic vector search with sparse keyword search (**BM25 + Reciprocal Rank Fusion**) for high recall and precision.
+* **📄 Multi-Format Ingestion:** Ingests PDFs and image files (`.png`, `.jpg`, `.jpeg`, `.webp`).
+* **📷 Intelligent OCR Fallback:** Automatically switches to **Tesseract OCR** for scanned PDFs and image documents.
+* **📌 Strict Citation System:** Every generated statement includes verifiable document citations (filename, page number, relevance match score, and excerpt preview).
+* **🗂️ Document & Chunk Inspector:** Interactive document processing, chunk visualization, embedding inspector, and vector store health monitoring.
+* **🔐 Enterprise Security:** JWT token authentication (Access + Refresh), password hashing (bcrypt), and strict document tenant isolation.
+
+---
+
+## 🏛️ RAG Architecture & Pipeline
+
+```
+[ User Query ]
+       │
+       ▼
+ 1. Embed Query (BAAI/bge-small-en-v1.5 → 384d vector)
+       │
+       ├───────────────────────────────┐
+       ▼                               ▼
+ 2a. Semantic Search (Qdrant)    2b. BM25 Keyword Search
+       │                               │
+       └───────────────┬───────────────┘
+                       ▼
+ 3. Reciprocal Rank Fusion (RRF: score = Σ 1/(60 + rank))
+                       │
+                       ▼
+ 4. Grounded Prompt Construction (System Rules + Ranked Chunks)
+                       │
+                       ▼
+ 5. Generation & Streaming (Gemini 2.5 Flash via SSE)
+                       │
+                       ▼
+ [ Real-time Token Stream + Citations + Latency Stats ]
+```
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technologies |
+|---|---|
+| **Frontend** | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, Framer Motion, Lucide Icons |
+| **Backend** | FastAPI, Python 3.11+, Pydantic v2, SQLAlchemy (Async), Alembic |
+| **LLM & Generation** | Google Gemini 2.5 Flash (`google-genai` SDK) |
+| **Embeddings** | `BAAI/bge-small-en-v1.5` via `sentence-transformers` (384 dimensions) |
+| **Vector Database** | Qdrant (In-Memory / HTTP Server) |
+| **Keyword Search** | `rank-bm25` (BM25Okapi) + Reciprocal Rank Fusion (RRF) |
+| **Document Processing** | PyMuPDF (fitz), Tesseract OCR (`pytesseract`), Pillow |
+| **Relational Database** | PostgreSQL / SQLite |
+
+---
+
+## 📁 Project Structure
 
 ```
 DockMind/
-├── frontend/          # Next.js 15 App Router (TypeScript + Tailwind)
-└── backend/           # FastAPI + SQLAlchemy + Alembic
+├── frontend/                     # Next.js 15 App Router
+│   ├── app/
+│   │   ├── (auth)/               # Login, Register, Forgot Password
+│   │   ├── dashboard/            # System analytics & quick actions
+│   │   ├── documents/            # Document library & chunk inspector
+│   │   ├── upload/               # File dropzone (PDF + Images)
+│   │   ├── chat/                 # Streaming RAG Chat interface
+│   │   └── settings/             # System health & RAG parameters
+│   ├── components/               # Reusable UI components
+│   └── lib/                      # API clients & SSE streaming helpers
+│
+└── backend/                      # FastAPI Backend
+    ├── app/
+    │   ├── api/v1/               # REST & SSE endpoints (auth, documents, chats)
+    │   ├── core/                 # Config, security, dependencies
+    │   ├── models/               # SQLAlchemy ORM models
+    │   ├── schemas/              # Pydantic validation schemas
+    │   └── services/             # Core business logic
+    │       ├── gemini_service.py              # Gemini 2.5 Flash client & streaming
+    │       ├── embedding_service.py           # BGE embeddings
+    │       ├── vector_store_service.py        # Qdrant client
+    │       ├── hybrid_search_service.py       # BM25 + RRF fusion
+    │       ├── ocr_service.py                 # Tesseract OCR engine
+    │       ├── document_processing_service.py # Text extraction & chunking
+    │       └── rag_service.py                 # End-to-end RAG orchestrator
+    └── requirements.txt
 ```
 
 ---
 
-## Frontend Setup
+## ⚙️ Quick Start Guide
 
-### Prerequisites
-- Node.js 18+
+### 1. Backend Setup
 
-### Install & Run
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-App runs at **http://localhost:3000**
-
-### Environment Variables
-
-Create `frontend/.env.local`:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-```
-
-### Pages
-
-| Route | Description | Auth Required |
-|---|---|---|
-| `/` | Landing page | ❌ |
-| `/login` | Sign in | ❌ |
-| `/register` | Create account | ❌ |
-| `/dashboard` | Overview + stats | ✅ |
-| `/upload` | Upload documents | ✅ |
-| `/chat` | AI chat interface | ✅ |
-
----
-
-## Backend Setup
-
-### Prerequisites
-- Python 3.11+
-- PostgreSQL 15+
-
-### Install & Run
-
-```bash
+```powershell
 cd backend
 
-# Create virtual environment
+# Create & activate virtual environment
 python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # macOS/Linux
+.\.venv\Scripts\Activate.ps1       # Windows
+# source .venv/bin/activate        # macOS/Linux
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure environment
+# Configure environment variables
 cp .env.example .env
-# Edit .env with your DATABASE_URL and SECRET_KEY
+# Open .env and add your GEMINI_API_KEY
 
 # Run database migrations
 alembic upgrade head
 
-# Start the server
-uvicorn app.main:app --reload --port 8000
+# Start FastAPI server
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-API runs at **http://localhost:8000**
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+* **API Docs (Swagger UI):** `http://localhost:8000/docs`
+* **Health Check:** `http://localhost:8000/health`
 
-### Backend Architecture
+### 2. Frontend Setup
 
-```
-backend/app/
-├── api/v1/
-│   ├── auth.py          # POST /auth/register, /login, /refresh | GET /me
-│   ├── documents.py     # CRUD /documents
-│   ├── chats.py         # CRUD /chats + /messages
-│   └── router.py        # Aggregated router
-├── core/
-│   ├── config.py        # Pydantic Settings (env-driven)
-│   ├── security.py      # JWT + bcrypt
-│   └── dependencies.py  # get_db, get_current_user
-├── database/
-│   ├── base.py          # SQLAlchemy DeclarativeBase
-│   └── session.py       # Async engine + session factory
-├── middleware/
-│   └── cors.py          # CORS config
-├── models/              # ORM: User, Document, Chat, Message
-├── schemas/             # Pydantic v2 request/response schemas
-├── services/            # Business logic layer
-│   ├── auth_service.py
-│   ├── user_service.py
-│   ├── document_service.py
-│   └── chat_service.py
-└── main.py              # FastAPI app entry point
+```powershell
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start Next.js development server
+npm run dev
 ```
 
-### Database Schema
+* **Application URL:** `http://localhost:3000`
 
-```sql
--- Users
-id, name, email, password_hash, is_active, created_at
+---
 
--- Documents
-id, user_id (FK→users), filename, file_path, file_size, mime_type, created_at
+## 📄 Environment Configuration (`backend/.env`)
 
--- Chats
-id, user_id (FK→users), title, created_at, updated_at
+```env
+# Application
+APP_NAME=DocMind AI
+DEBUG=true
 
--- Messages
-id, chat_id (FK→chats), role (user|assistant|system), content, created_at
+# Database
+DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5432/docmind
+
+# Security
+SECRET_KEY=your-32-char-secret-key-here
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# Gemini AI
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-2.5-flash
+
+# Qdrant & Embedding
+QDRANT_MODE=memory
+EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
+
+# RAG & Search Features
+RAG_TOP_K=5
+RAG_SCORE_THRESHOLD=0.25
+HYBRID_SEARCH=true
+OCR_ENABLED=true
 ```
 
 ---
 
-## API Reference
+## 🛡️ License
 
-### Auth
-```
-POST /api/v1/auth/register   { name, email, password }
-POST /api/v1/auth/login      { email, password }
-POST /api/v1/auth/refresh    { refresh_token }
-GET  /api/v1/auth/me         → UserRead
-```
+MIT License © 2026 Vinod Ratnam
 
-### Documents
-```
-GET    /api/v1/documents/       → DocumentRead[]
-POST   /api/v1/documents/       { filename, file_path, file_size?, mime_type? }
-GET    /api/v1/documents/{id}   → DocumentRead
-DELETE /api/v1/documents/{id}
-```
-
-### Chats
-```
-GET    /api/v1/chats/                  → ChatRead[]
-POST   /api/v1/chats/                  { title? }
-GET    /api/v1/chats/{id}              → ChatRead
-PATCH  /api/v1/chats/{id}             { title? }
-DELETE /api/v1/chats/{id}
-GET    /api/v1/chats/{id}/messages     → MessageRead[]
-POST   /api/v1/chats/{id}/messages    { role, content }
-```
-
----
-
-## What's Included (Foundation Phase)
-
-✅ Next.js 15 App Router + TypeScript  
-✅ Tailwind CSS with custom design tokens  
-✅ Dark / light theme toggle (next-themes)  
-✅ Framer Motion animations throughout  
-✅ Responsive sidebar + top navigation  
-✅ JWT authentication (login, register, refresh, me)  
-✅ Protected route architecture (AuthGuard)  
-✅ Landing page (Hero, Features, Architecture, CTA, Footer)  
-✅ Dashboard with stats + empty states  
-✅ Upload page with drag-and-drop UI  
-✅ Chat page with message bubbles + typing indicator  
-✅ FastAPI with async SQLAlchemy 2.0  
-✅ Alembic migrations (initial schema)  
-✅ Full CRUD services for documents, chats, messages  
-
----
-
-## What's Next (RAG Phase)
-
-- [ ] Actual file upload to disk / S3
-- [ ] Document text extraction (PyMuPDF, python-docx)
-- [ ] Text chunking + embedding (OpenAI / local model)
-- [ ] Vector storage (pgvector or Chroma)
-- [ ] RAG retrieval chain (LangChain / LlamaIndex)
-- [ ] Streaming AI responses (SSE / WebSocket)
-- [ ] Document status tracking (processing, ready, error)
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 15, React 19, TypeScript |
-| Styling | Tailwind CSS, CSS Variables |
-| Animations | Framer Motion |
-| HTTP Client | Axios |
-| Auth State | React Context + localStorage |
-| Backend | FastAPI, Python 3.11+ |
-| ORM | SQLAlchemy 2.0 (async) |
-| Migrations | Alembic |
-| Database | PostgreSQL 15+ |
-| Auth | JWT (python-jose) + bcrypt (passlib) |
-| Validation | Pydantic v2 |
